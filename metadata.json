@@ -1,0 +1,7 @@
+{
+  "name": "EduFaceGuard",
+  "description": "Secure, privacy-focused educational attendance system using facial recognition.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
