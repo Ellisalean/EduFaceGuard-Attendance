@@ -74,11 +74,14 @@ const Register: React.FC = () => {
         setDescriptors(prev => [...prev, detection.descriptor]);
         setCaptures(prev => prev + 1);
         
-        // Capture first frame as profile image
+        // Capture first frame as profile image - OPTIMIZED FOR STORAGE
         if (!profileImg) {
           const canvas = document.createElement('canvas');
-          canvas.width = videoRef.current.videoWidth;
-          canvas.height = videoRef.current.videoHeight;
+          // Scale down to a thumbnail size (e.g., 200px width) to save localStorage space
+          const scaleFactor = 200 / videoRef.current.videoWidth;
+          canvas.width = videoRef.current.videoWidth * scaleFactor;
+          canvas.height = videoRef.current.videoHeight * scaleFactor;
+          
           const ctx = canvas.getContext('2d');
           
           if (ctx) {
@@ -87,13 +90,16 @@ const Register: React.FC = () => {
                  ctx.translate(canvas.width, 0);
                  ctx.scale(-1, 1);
              }
-             ctx.drawImage(videoRef.current, 0, 0);
-             setProfileImg(canvas.toDataURL('image/jpeg', 0.5));
+             // Draw scaled image
+             ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+             
+             // High compression JPEG (0.6 quality)
+             setProfileImg(canvas.toDataURL('image/jpeg', 0.6));
           }
         }
 
       } else {
-        alert("No face detected. Please look at the camera.");
+        alert("No se detectó rostro. Por favor mire a la cámara.");
       }
     } catch (e) {
       console.error(e);
@@ -104,11 +110,11 @@ const Register: React.FC = () => {
 
   const handleSaveUser = () => {
     if (!formData.fullName || !formData.id || !formData.courseOrDept) {
-      alert("Please fill in all fields");
+      alert("Por favor complete todos los campos");
       return;
     }
     if (captures < REQUIRED_CAPTURES) {
-      alert(`Please capture ${REQUIRED_CAPTURES} angles.`);
+      alert(`Por favor capture al menos ${REQUIRED_CAPTURES} ángulos.`);
       return;
     }
 
@@ -121,19 +127,24 @@ const Register: React.FC = () => {
       profileImage: profileImg || undefined,
     };
 
-    StorageService.saveUser(newUser);
-    StorageService.addFaceDescriptor({
-      label: newUser.id,
-      descriptors: descriptors
-    });
+    try {
+        StorageService.saveUser(newUser);
+        StorageService.addFaceDescriptor({
+        label: newUser.id,
+        descriptors: descriptors
+        });
 
-    // Reset
-    faceService.loadMatcherFromStorage(); // Reload matcher
-    alert("User Registered Successfully!");
-    setFormData({ role: UserRole.STUDENT, fullName: '', id: '', courseOrDept: '' });
-    setCaptures(0);
-    setDescriptors([]);
-    setProfileImg(null);
+        // Reset
+        faceService.loadMatcherFromStorage(); // Reload matcher
+        alert("¡Usuario registrado exitosamente!");
+        setFormData({ role: UserRole.STUDENT, fullName: '', id: '', courseOrDept: '' });
+        setCaptures(0);
+        setDescriptors([]);
+        setProfileImg(null);
+    } catch (error) {
+        alert("Error: Memoria llena. Intente borrar usuarios antiguos.");
+        console.error(error);
+    }
   };
 
   if (!isAuthenticated) {
@@ -141,8 +152,8 @@ const Register: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-[80vh] bg-gray-50">
         <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center">
           <Shield className="w-16 h-16 text-brand-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Admin Access</h2>
-          <p className="text-gray-500 mb-6">Enter PIN to register new users.</p>
+          <h2 className="text-2xl font-bold mb-2">Acceso Administrativo</h2>
+          <p className="text-gray-500 mb-6">Ingrese el PIN para registrar nuevos usuarios.</p>
           <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="password"
@@ -156,9 +167,9 @@ const Register: React.FC = () => {
               type="submit"
               className="w-full bg-brand-600 text-white py-3 rounded-lg font-semibold hover:bg-brand-700 transition"
             >
-              Unlock
+              Desbloquear
             </button>
-            <p className="text-xs text-gray-400 mt-4">Hint: Use '1234' for demo.</p>
+            <p className="text-xs text-gray-400 mt-4">Pista: Use '1234' para la demo.</p>
           </form>
         </div>
       </div>
@@ -173,61 +184,61 @@ const Register: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-xl font-bold mb-4 flex items-center text-gray-800">
             <UserIcon className="mr-2" />
-            User Details
+            Datos del Usuario
           </h2>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
               <input
                 type="text"
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-brand-500 outline-none"
                 value={formData.fullName || ''}
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                placeholder="e.g. John Doe"
+                placeholder="Ej. Juan Pérez"
               />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Número de ID</label>
                 <input
                   type="text"
                   className="w-full p-2 border rounded-md focus:ring-2 focus:ring-brand-500 outline-none"
                   value={formData.id || ''}
                   onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  placeholder="e.g. S12345"
+                  placeholder="Ej. E-12345"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
                 <select
                   className="w-full p-2 border rounded-md focus:ring-2 focus:ring-brand-500 outline-none bg-white"
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                 >
-                  <option value={UserRole.STUDENT}>Student</option>
-                  <option value={UserRole.TEACHER}>Teacher</option>
-                  <option value={UserRole.STAFF}>Staff</option>
+                  <option value={UserRole.STUDENT}>Estudiante</option>
+                  <option value={UserRole.TEACHER}>Profesor</option>
+                  <option value={UserRole.STAFF}>Personal</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Course / Department</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Curso / Departamento</label>
               <input
                 type="text"
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-brand-500 outline-none"
                 value={formData.courseOrDept || ''}
                 onChange={(e) => setFormData({ ...formData, courseOrDept: e.target.value })}
-                placeholder="e.g. Computer Science 101"
+                placeholder="Ej. Ingeniería de Sistemas"
               />
             </div>
           </div>
         </div>
 
         <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
-          <strong>Tip:</strong> Ensure good lighting. Ask the user to slowly turn their head slightly left, right, and center for better accuracy.
+          <strong>Consejo:</strong> Asegure una buena iluminación. Pida al usuario que gire la cabeza lentamente hacia la izquierda, derecha y centro.
         </div>
       </div>
 
@@ -248,7 +259,7 @@ const Register: React.FC = () => {
                  <button 
                     onClick={toggleCamera}
                     className="bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-all"
-                    title="Switch Camera"
+                    title="Cambiar Cámara"
                  >
                     <SwitchCamera size={20} />
                  </button>
@@ -256,7 +267,7 @@ const Register: React.FC = () => {
 
             {/* Capture Progress Overlay */}
             <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-2 text-center text-white text-sm">
-              Captures: <span className="font-bold text-brand-400">{captures}</span> / {REQUIRED_CAPTURES}
+              Capturas: <span className="font-bold text-brand-400">{captures}</span> / {REQUIRED_CAPTURES}
             </div>
           </div>
 
@@ -271,13 +282,13 @@ const Register: React.FC = () => {
               }`}
             >
               <Camera size={20} />
-              <span>{isProcessing ? 'Processing...' : 'Capture Face'}</span>
+              <span>{isProcessing ? 'Procesando...' : 'Capturar Rostro'}</span>
             </button>
 
             <button
               onClick={() => { setCaptures(0); setDescriptors([]); setProfileImg(null); }}
               className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
-              title="Reset Captures"
+              title="Reiniciar Capturas"
             >
               <RotateCcw size={20} />
             </button>
@@ -294,7 +305,7 @@ const Register: React.FC = () => {
           }`}
         >
           <Save size={24} />
-          <span>Complete Registration</span>
+          <span>Completar Registro</span>
         </button>
       </div>
 

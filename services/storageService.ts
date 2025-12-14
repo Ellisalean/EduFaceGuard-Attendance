@@ -34,6 +34,15 @@ export const StorageService = {
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
   },
 
+  updateUser: (updatedUser: User) => {
+    const users = StorageService.getUsers();
+    const index = users.findIndex(u => u.id === updatedUser.id);
+    if (index !== -1) {
+      users[index] = updatedUser;
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    }
+  },
+
   deleteUser: (userId: string) => {
     const users = StorageService.getUsers().filter(u => u.id !== userId);
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
