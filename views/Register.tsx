@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Save, User as UserIcon, Shield, RotateCcw } from 'lucide-react';
+import { Camera, Save, User as UserIcon, Shield, RotateCcw, SwitchCamera } from 'lucide-react';
 import { faceService } from '../services/faceService';
 import { StorageService } from '../services/storageService';
 import { User, UserRole } from '../types';
@@ -14,6 +14,9 @@ const Register: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [descriptors, setDescriptors] = useState<Float32Array[]>([]);
   const [profileImg, setProfileImg] = useState<string | null>(null);
+  
+  // Camera State
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -27,11 +30,14 @@ const Register: React.FC = () => {
       faceService.loadModels(); // Ensure models loaded
     }
     return () => stopCamera();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, facingMode]); // Restart when mode changes
 
   const startCamera = async () => {
+    stopCamera(); // Ensure clean switch
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: facingMode } 
+      });
       if (videoRef.current) {
          videoRef.current.srcObject = stream;
       }
@@ -46,6 +52,10 @@ const Register: React.FC = () => {
       stream.getTracks().forEach(t => t.stop());
       videoRef.current.srcObject = null;
     }
+  };
+
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -69,8 +79,17 @@ const Register: React.FC = () => {
           const canvas = document.createElement('canvas');
           canvas.width = videoRef.current.videoWidth;
           canvas.height = videoRef.current.videoHeight;
-          canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
-          setProfileImg(canvas.toDataURL('image/jpeg', 0.5));
+          const ctx = canvas.getContext('2d');
+          
+          if (ctx) {
+             // If user mode, flip horizontally for natural look in image
+             if (facingMode === 'user') {
+                 ctx.translate(canvas.width, 0);
+                 ctx.scale(-1, 1);
+             }
+             ctx.drawImage(videoRef.current, 0, 0);
+             setProfileImg(canvas.toDataURL('image/jpeg', 0.5));
+          }
         }
 
       } else {
@@ -221,9 +240,20 @@ const Register: React.FC = () => {
               autoPlay
               muted
               playsInline
-              className="w-full h-full object-cover transform -scale-x-100"
+              className={`w-full h-full object-cover ${facingMode === 'user' ? 'transform -scale-x-100' : ''}`}
             />
             
+            {/* Camera Controls Overlay */}
+            <div className="absolute top-2 right-2">
+                 <button 
+                    onClick={toggleCamera}
+                    className="bg-black/50 hover:bg-black/70 text-white p-2 rounded-full backdrop-blur-sm transition-all"
+                    title="Switch Camera"
+                 >
+                    <SwitchCamera size={20} />
+                 </button>
+            </div>
+
             {/* Capture Progress Overlay */}
             <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-2 text-center text-white text-sm">
               Captures: <span className="font-bold text-brand-400">{captures}</span> / {REQUIRED_CAPTURES}

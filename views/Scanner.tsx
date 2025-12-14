@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CheckCircle, AlertTriangle, User, RefreshCw, Clock, ShieldCheck, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, User, RefreshCw, Clock, ShieldCheck, Loader2, SwitchCamera } from 'lucide-react';
 import { faceService } from '../services/faceService';
 import { StorageService } from '../services/storageService';
 import { AttendanceType, User as UserType, AttendanceRecord } from '../types';
@@ -18,6 +18,9 @@ const Scanner: React.FC = () => {
   const [detectedUser, setDetectedUser] = useState<UserType | null>(null);
   const [attendanceStatus, setAttendanceStatus] = useState<'success' | 'already-checked-in' | null>(null);
   const [isScreensaverActive, setIsScreensaverActive] = useState(true);
+  
+  // Camera State
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
   // Logic Refs (Mutable state for the loop)
   const stateRef = useRef({
@@ -36,15 +39,22 @@ const Scanner: React.FC = () => {
     let animationFrameId: number;
     let stream: MediaStream | null = null;
 
+    // Reset ready state when camera changes
+    setIsSystemReady(false);
+
     const startSystem = async () => {
       try {
         await faceService.loadModels();
         
         if (!isActive) return;
 
-        // Request camera with specific constraints
+        // Request camera with specific constraints based on facingMode
         stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { width: 640, height: 480, facingMode: 'user' } 
+            video: { 
+              width: 640, 
+              height: 480, 
+              facingMode: facingMode // Dynamic facing mode
+            } 
         });
         
         if (!isActive) {
@@ -57,7 +67,6 @@ const Scanner: React.FC = () => {
           videoRef.current.srcObject = stream;
           
           // IMPORTANT: Wait for 'onplaying' to ensure video has actual data
-          // 'onloadedmetadata' is sometimes too early for face-api
           videoRef.current.onplaying = () => {
             if (isActive) {
                 setIsSystemReady(true);
@@ -99,7 +108,11 @@ const Scanner: React.FC = () => {
           videoRef.current.srcObject = null;
       }
     };
-  }, []);
+  }, [facingMode]); // Re-run effect when facingMode changes
+
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  };
 
   // Frame Processing Logic
   const processFrame = async () => {
@@ -107,8 +120,6 @@ const Scanner: React.FC = () => {
     const video = videoRef.current;
     
     // STRICT SAFETY CHECK
-    // video.readyState < 3 means it doesn't have enough data for the current frame
-    // videoWidth < 1 means the video texture isn't ready
     if (video.paused || video.ended || video.readyState < 3 || video.videoWidth < 1) return;
 
     const canvas = canvasRef.current;
@@ -347,17 +358,25 @@ const Scanner: React.FC = () => {
 
         <video
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover transform -scale-x-100" 
+          className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'transform -scale-x-100' : ''}`}
           muted
           playsInline
         />
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full transform -scale-x-100 pointer-events-none"
+          className={`absolute inset-0 w-full h-full pointer-events-none ${facingMode === 'user' ? 'transform -scale-x-100' : ''}`}
         />
 
-        {/* Live Indicator */}
-        <div className="absolute top-4 right-4 z-10">
+        {/* Live Indicator & Controls */}
+        <div className="absolute top-4 right-4 z-10 flex space-x-2">
+           <button 
+             onClick={toggleCamera}
+             className="bg-black/50 backdrop-blur-md p-2 rounded-full text-white hover:bg-black/70 border border-white/20 transition-all"
+             title="Cambiar Cámara"
+           >
+             <SwitchCamera size={18} />
+           </button>
+
           <div className="bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-sm font-semibold text-white flex items-center border border-white/20">
             <div className={`w-2 h-2 rounded-full mr-2 ${isSystemReady ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
             {isSystemReady ? 'Sistema Activo' : 'Iniciando...'}
