@@ -5,7 +5,7 @@ import { StorageService } from '../services/storageService';
 import { AttendanceType, User as UserType, AttendanceRecord } from '../types';
 
 const LOGO_URL = "https://cdn.myportfolio.com/d435fa58-d32c-4141-8a15-0f2bfccdea41/1ac05fb8-e508-4c03-b550-d2b907caadbd_rw_600.png?h=7572d326e4292f32557ac73606fd0ece";
-const SCREENSAVER_TIMEOUT_MS = 5000;
+const SCREENSAVER_TIMEOUT_MS = 15000; // Increased to 15s for mobile ease of use
 const FACE_LOSS_GRACE_PERIOD_MS = 2000;
 
 const Scanner: React.FC = () => {

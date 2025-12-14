@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { User, UserRole } from '../types';
-import { Trash2, Search, User as UserIcon, ShieldAlert, Edit2, X, Check } from 'lucide-react';
+import { Trash2, Search, User as UserIcon, ShieldAlert, Edit2, X, Check, Database } from 'lucide-react';
 
 const UserList: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -49,6 +49,17 @@ const UserList: React.FC = () => {
       setEditingUser(null);
     }
   };
+  
+  const handleFactoryReset = () => {
+    const confirmText = "BORRAR TODO";
+    const input = window.prompt(`¡PELIGRO! Esto borrará TODOS los usuarios, fotos y registros de asistencia.\n\nPara confirmar, escriba "${confirmText}":`);
+    
+    if (input === confirmText) {
+      StorageService.clearData();
+      alert("Sistema reseteado correctamente.");
+      window.location.reload(); // Reload to clear state
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,18 +104,32 @@ const UserList: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8 relative">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <h1 className="text-3xl font-bold text-gray-800">Gestión de Usuarios</h1>
+      {/* Header with Search and Danger Zone */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div>
+           <h1 className="text-3xl font-bold text-gray-800">Gestión de Usuarios</h1>
+           <p className="text-gray-500 text-sm mt-1">Total registrados: {users.length}</p>
+        </div>
         
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-          <input 
-            type="text" 
-            placeholder="Buscar por nombre, ID o curso..." 
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none shadow-sm"
-          />
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            <div className="relative flex-grow">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <input 
+                type="text" 
+                placeholder="Buscar..." 
+                value={filter}
+                onChange={e => setFilter(e.target.value)}
+                className="w-full sm:w-64 pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none shadow-sm"
+            />
+            </div>
+            
+            <button 
+                onClick={handleFactoryReset}
+                className="bg-red-100 text-red-700 px-4 py-2 rounded-xl text-sm font-bold flex items-center justify-center hover:bg-red-200 transition border border-red-200 whitespace-nowrap"
+                title="Borrar base de datos local"
+            >
+                <Database size={16} className="mr-2" /> Reset Total
+            </button>
         </div>
       </div>
 
